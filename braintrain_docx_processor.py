@@ -104,7 +104,8 @@ def process_file(file_name, save_file=False):
             counter += 1
             continue
         line = para.text.strip()
-
+        line = line.replace('"', '\\"')
+        line = line.replace('”', '\\"')
         # print(line)
 
         # Skip header
@@ -175,7 +176,6 @@ def process_file(file_name, save_file=False):
         # print(item)
 
     json_obj = json.dumps(questions)
-
     json_hash = hashlib.md5(json_obj.encode('utf-8')).hexdigest()
     mismatch = False
     with open(EXPECTED_RESULTS_FILE, 'r+') as openfile:
