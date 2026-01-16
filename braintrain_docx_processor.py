@@ -61,6 +61,9 @@ def process_answer(para, line, questions, a_strat, correct_strat, blanks):
         elif correct_strat == 'highlight':
             is_correct = any(
                 run.font.highlight_color for run in para.runs if run.font.highlight_color != WD_COLOR_INDEX.WHITE)
+        elif correct_strat == 'anti_bold':
+            is_correct = any(run.bold for run in para.runs if run.bold)
+            is_correct = not is_correct
 
         # I cant believe this shit exists fr fr
         elif correct_strat == 'heart':
@@ -74,11 +77,12 @@ def process_answer(para, line, questions, a_strat, correct_strat, blanks):
         questions[-1]['answers']['checkbox'].append('0')
 
 
-def process_file(file_name, save_file=False):
+def process_file(file_name, save_file=False, ignore_hash=False):
     file_path = os.path.join(DOCS_FOLDER, file_name)
     doc = Document(file_path)
     correct_strat = None
     blanks = None
+    post_process = None
     with open(STRATEGY_JSON, 'r') as openfile:
         settings = json.load(openfile)
         if file_name not in settings:
@@ -91,6 +95,8 @@ def process_file(file_name, save_file=False):
             correct_strat = file_settings['correct']
         if 'blanks' in file_settings:
             blanks = file_settings['blanks']
+        if 'post_process' in file_settings:
+            post_process = file_settings['post_process']
 
     # each item in this list dict
     # {'question': 'the sky is', 'answers': ['green', 'blue', ...], 'checkbox': ['0', '1', ...]
@@ -106,7 +112,7 @@ def process_file(file_name, save_file=False):
         line = para.text.strip()
         line = line.replace('"', '\\"')
         line = line.replace('”', '\\"')
-        # print(line)
+        print(line)
 
         # Skip header
         if 'header_lines' not in file_settings and not found_first_line:
@@ -174,19 +180,30 @@ def process_file(file_name, save_file=False):
         if len(item['answers']['text']) == 1:
             item['answers']['checkbox'] = ['1']
         # print(item)
+    if post_process and post_process == 'remove_q_numbering':
+        for item in questions:
+            regex = r'(?:\d+)\. (.*)'
+            q = item['question']
+            q = re.match(regex, q).group(1)
+            item['question'] = q
 
     json_obj = json.dumps(questions)
     json_hash = hashlib.md5(json_obj.encode('utf-8')).hexdigest()
     mismatch = False
     with open(EXPECTED_RESULTS_FILE, 'r+') as openfile:
         expected_json = json.load(openfile)
-        if file_name not in expected_json:
+        if not ignore_hash:
+            if file_name not in expected_json:
+                expected_json[file_name] = json_hash
+                openfile.seek(0)
+                json.dump(expected_json, openfile, indent=4)
+            elif expected_json[file_name] != json_hash:
+                mismatch = True
+                print(f"Hash mismatch: {file_name}")
+        else:
             expected_json[file_name] = json_hash
             openfile.seek(0)
             json.dump(expected_json, openfile, indent=4)
-        elif expected_json[file_name] != json_hash:
-            mismatch = True
-            print(f"Hash mismatch: {file_name}")
     if save_file and not mismatch:
         save_path = os.path.join(EXPECTED_RESULTS_FODLER, file_name.strip('docx'))
         save_path += 'json'
@@ -201,4 +218,4 @@ def process_file(file_name, save_file=False):
 #     print(f'processing {file_name}')
 #     process_file(file_name)
 
-process_file("Psycho_2025_a.docx", True)
+process_file("Psycho_bunch.docx", True, True)
