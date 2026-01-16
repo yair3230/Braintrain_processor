@@ -9,7 +9,7 @@ with open(filename) as openfile:
     content = json.load(openfile)
 chunks = [[]]
 for q in content:
-    if len(chunks[-1]) >= 5:
+    if len(chunks[-1]) >= 7:
         chunks.append([])
     chunks[-1].append(q)
 for index, chunk in enumerate(chunks):
